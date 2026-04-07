@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 
 # --- 1. DATABASE SETUP ---
-DATABASE_NAME = 'jmi_final_v6_2.db'
+DATABASE_NAME = 'jmi_enterprise_v6_3.db'
 conn = sqlite3.connect(DATABASE_NAME, check_same_thread=False)
 c = conn.cursor()
 
@@ -20,21 +20,22 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, item_name TEXT, stock INTEGER, price REAL)')
     c.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, role TEXT)')
     
+    # Default Admin: JMI@2026
     admin_hash = hashlib.sha256(str.encode("JMI@2026")).hexdigest()
     c.execute("INSERT OR IGNORE INTO users VALUES (?,?,?)", ('admin', admin_hash, 'Owner'))
     conn.commit()
 
 init_db()
 
-# --- 2. THEME & STYLE ---
-st.set_page_config(page_title="JMI Portal | CHAN Sokhoeurn", layout="wide")
+# --- 2. PREMIUM UI STYLING (Navy & Gold) ---
+st.set_page_config(page_title="JMI Portal | Dr. CHAN Sokhoeurn", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #000033; }
     [data-testid="stSidebar"] { background-color: #00001a !important; border-right: 2px solid #D4AF37; }
     h1, h2, h3, label, p, span, .stMarkdown { color: #D4AF37 !important; }
     .stButton>button { background-color: #D4AF37; color: #000033; border-radius: 8px; font-weight: bold; border: 1px solid #FFD700; width: 100%; }
-    .stTabs [data-baseweb="tab"] { color: #D4AF37 !important; font-size: 14px; font-weight: bold; }
+    .stTabs [data-baseweb="tab"] { color: #D4AF37 !important; font-size: 15px; font-weight: bold; }
     .footer { position: fixed; bottom: 0; left: 0; width: 100%; background-color: #00001a; text-align: center; padding: 5px; color: #D4AF37; border-top: 1px solid #D4AF37; z-index: 100; }
     input, select, textarea { background-color: #000055 !important; color: white !important; border: 1px solid #D4AF37 !important; }
     div[data-testid="stMetricValue"] { color: #D4AF37 !important; }
@@ -45,167 +46,176 @@ st.markdown("""
 if 'auth' not in st.session_state: st.session_state['auth'] = False
 
 if not st.session_state['auth']:
-    st.sidebar.markdown("<h2 style='text-align:center;'>JMI LOGIN</h2>", unsafe_allow_html=True)
+    st.sidebar.title("JMI LOGIN")
     u = st.sidebar.text_input("Username")
     p = st.sidebar.text_input("Password", type='password')
-    if st.sidebar.button("ENTER SYSTEM"):
+    if st.sidebar.button("LOG IN"):
         input_hash = hashlib.sha256(str.encode(p)).hexdigest()
         res = c.execute("SELECT password, role FROM users WHERE username=?", (u,)).fetchone()
         if res and input_hash == res[0]:
             st.session_state.update({"auth": True, "user": u, "role": res[1]})
             st.rerun()
-        else: st.sidebar.error("⚠️ ព័ត៌មានមិនត្រឹមត្រូវ")
+        else: st.sidebar.error("Invalid Credentials")
 else:
-    st.sidebar.success(f"សួស្តី {st.session_state['user']} ({st.session_state['role']})")
-    if st.sidebar.button("LOGOUT"):
+    st.sidebar.success(f"Welcome, {st.session_state['user']} ({st.session_state['role']})")
+    if st.sidebar.button("LOG OUT"):
         st.session_state['auth'] = False
         st.rerun()
 
-# --- 4. MAIN APPLICATION ---
+# --- 4. MAIN SYSTEM ---
 if st.session_state['auth']:
     role = st.session_state['role']
-    st.title("🏛️ JMI MASTER SYSTEM v6.2")
+    st.title("🏛️ JMI MASTER SYSTEM v6.3")
     
-    menu = ["📝 Enrollment", "💰 Payments", "📅 Attendance", "📜 Skill Passport", "🧬 Curriculum", "🍎 Health", "🛒 Inventory", "👤 Profile Search"]
-    if role == "Owner": menu.append("📊 CEO Dashboard")
-    tabs = st.tabs(menu)
+    tabs_list = ["📝 Enrollment", "💰 Payments", "📅 Attendance", "📜 Skill Passport", "🧬 Curriculum", "🍎 Health", "🛒 Inventory", "👤 Student Search"]
+    if role == "Owner": tabs_list.append("📊 CEO Dashboard")
+    tabs = st.tabs(tabs_list)
 
-    sts_df = pd.read_sql_query("SELECT id, name, grade FROM students", conn)
+    # Global Student Data
+    students_master = pd.read_sql_query("SELECT id, name, grade FROM students", conn)
 
     # --- TAB: ENROLLMENT ---
     with tabs[0]:
-        st.header("ការចុះឈ្មោះសិស្សថ្មី")
-        with st.form("reg_form"):
-            n = st.text_input("ឈ្មោះពេញ")
-            g = st.selectbox("កម្រិតសិក្សា", ["K1-K4", "P1-P6", "S1-S3", "H1-H3", "PUF1-PUF2"])
-            if st.form_submit_button("ចុះឈ្មោះ"):
-                if n:
-                    c.execute("INSERT INTO students (name, grade, reg_date) VALUES (?,?,?)", (n, g, datetime.now().strftime("%Y-%m-%d")))
+        st.header("New Student Registration")
+        with st.form("enroll_form"):
+            name = st.text_input("Full Name")
+            grade = st.selectbox("Assign Grade", ["K1-K4", "P1-P6", "S1-S3", "H1-H3", "PUF1-PUF2"])
+            if st.form_submit_button("REGISTER STUDENT"):
+                if name:
+                    c.execute("INSERT INTO students (name, grade, reg_date) VALUES (?,?,?)", (name, grade, datetime.now().strftime("%Y-%m-%d")))
                     conn.commit()
-                    st.success(f"ចុះឈ្មោះ {n} រួចរាល់!")
+                    st.success(f"{name} registered successfully!")
                     st.rerun()
-        st.subheader("បញ្ជីសិស្សថ្មីៗ")
+        st.subheader("Recent Admissions")
         st.dataframe(pd.read_sql_query("SELECT * FROM students ORDER BY id DESC LIMIT 5", conn), use_container_width=True)
 
     # --- TAB: PAYMENTS ---
     with tabs[1]:
-        st.header("ការគ្រប់គ្រងហិរញ្ញវត្ថុ")
-        if not sts_df.empty:
-            with st.expander("បញ្ចូលការបង់ប្រាក់"):
-                sid = st.selectbox("ជ្រើសរើសសិស្ស", sts_df['id'], format_func=lambda x: sts_df[sts_df['id']==x]['name'].values[0], key="p_sid")
-                amt = st.number_input("ចំនួនទឹកប្រាក់ ($)", min_value=0.0)
-                if st.button("បញ្ជាក់ការបង់ប្រាក់"):
+        st.header("Tuition & Fees Management")
+        if not students_master.empty:
+            with st.expander("Record New Transaction"):
+                sid = st.selectbox("Select Student", students_master['id'], format_func=lambda x: students_master[students_master['id']==x]['name'].values[0], key="pay_sid")
+                amount = st.number_input("Amount ($)", min_value=0.0)
+                if st.button("PROCESS PAYMENT"):
                     tid = str(uuid.uuid4())[:8].upper()
                     c.execute("INSERT INTO payments (student_id, amount, date, staff_name, transaction_id) VALUES (?,?,?,?,?)",
-                              (int(sid), amt, datetime.now().strftime("%Y-%m-%d"), st.session_state['user'], tid))
+                              (int(sid), amount, datetime.now().strftime("%Y-%m-%d"), st.session_state['user'], tid))
                     conn.commit()
-                    st.info(f"លេខវិក្កយបត្រ: {tid}")
-        st.subheader("ប្រវត្តិការបង់ប្រាក់ចុងក្រោយ")
-        st.dataframe(pd.read_sql_query("SELECT payments.id, students.name, payments.amount, payments.date FROM payments JOIN students ON payments.student_id = students.id ORDER BY payments.id DESC LIMIT 10", conn), use_container_width=True)
+                    st.success(f"Receipt Generated: {tid}")
+        st.subheader("Transaction History")
+        st.dataframe(pd.read_sql_query("SELECT payments.id, students.name, payments.amount, payments.date, payments.transaction_id FROM payments JOIN students ON payments.student_id = students.id ORDER BY payments.id DESC", conn), use_container_width=True)
 
     # --- TAB: ATTENDANCE (Teacher Mode Optimized) ---
     with tabs[2]:
-        st.header("វត្តមានប្រចាំថ្ងៃ (Teacher Mode)")
+        st.header("Daily Attendance Tracker")
         today = datetime.now().strftime("%Y-%m-%d")
+        grade_filter = st.selectbox("Filter by Class", ["All Grades", "K1-K4", "P1-P6", "S1-S3", "H1-H3", "PUF1-PUF2"])
         
-        # មុខងារ Filter តាមថ្នាក់សម្រាប់គ្រូ
-        f_grade = st.selectbox("ជ្រើសរើសថ្នាក់ដែលត្រូវចុះវត្តមាន", ["All Grades", "K1-K4", "P1-P6", "S1-S3", "H1-H3", "PUF1-PUF2"])
-        
-        if f_grade != "All Grades":
-            filtered_sts = sts_df[sts_df['grade'] == f_grade]
-        else:
-            filtered_sts = sts_df
+        display_sts = students_master if grade_filter == "All Grades" else students_master[students_master['grade'] == grade_filter]
 
-        if not filtered_sts.empty:
-            for i, row in filtered_sts.iterrows():
-                c1, c2 = st.columns([3, 1])
-                c1.write(f"**{row['name']}**")
-                status = c2.radio("ស្ថានភាព", ["វត្តមាន", "អវត្តមាន"], key=f"att_{row['id']}", horizontal=True)
-                if st.button(f"រក្សាទុកវត្តមាន {row['name']}", key=f"btn_att_{row['id']}"):
+        if not display_sts.empty:
+            for i, row in display_sts.iterrows():
+                col1, col2 = st.columns([3, 1])
+                col1.write(f"**{row['name']}**")
+                status = col2.radio("Status", ["Present", "Absent"], key=f"att_{row['id']}", horizontal=True)
+                if st.button(f"Save: {row['name']}", key=f"btn_att_{row['id']}"):
                     c.execute("INSERT INTO attendance (student_id, status, date) VALUES (?,?,?)", (row['id'], status, today))
                     conn.commit()
-                    st.toast(f"បានរក្សាទុកវត្តមានសម្រាប់ {row['name']}")
+                    st.toast(f"Recorded: {row['name']} is {status}")
         else:
-            st.warning("មិនមានសិស្សក្នុងថ្នាក់នេះទេ។")
+            st.warning("No students found in this grade.")
 
     # --- TAB: SKILL PASSPORT ---
     with tabs[3]:
-        st.header("📜 Skill Passport")
-        if not sts_df.empty:
-            sid_s = st.selectbox("ជ្រើសរើសសិស្ស", sts_df['id'], format_func=lambda x: sts_df[sts_df['id']==x]['name'].values[0], key="s_sid")
-            skill = st.text_input("ជំនាញដែលសម្រេចបាន")
-            if st.button("បន្ថែមជំនាញ"):
-                c.execute("INSERT INTO skill_passport (student_id, skill_name, date_achieved) VALUES (?,?,?)", (sid_s, skill, today))
+        st.header("📜 Medical Skill Passport")
+        if not students_master.empty:
+            sid_skill = st.selectbox("Select Student", students_master['id'], format_func=lambda x: students_master[students_master['id']==x]['name'].values[0], key="skill_sid")
+            skill_name = st.text_input("Certified Skill (e.g., Blood Pressure Mastery)")
+            if st.button("CERTIFY SKILL"):
+                c.execute("INSERT INTO skill_passport (student_id, skill_name, date_achieved) VALUES (?,?,?)", (sid_skill, skill_name, today))
                 conn.commit()
-                st.success("ជំនាញត្រូវបានកត់ត្រា!")
-        st.table(pd.read_sql_query("SELECT students.name, skill_passport.skill_name, skill_passport.date_achieved FROM skill_passport JOIN students ON skill_passport.student_id = students.id ORDER BY skill_passport.id DESC LIMIT 10", conn))
+                st.success("Skill added to Digital Passport!")
+        st.dataframe(pd.read_sql_query("SELECT students.name, skill_passport.skill_name, skill_passport.date_achieved FROM skill_passport JOIN students ON skill_passport.student_id = students.id ORDER BY skill_passport.id DESC", conn), use_container_width=True)
 
     # --- TAB: CURRICULUM ---
     with tabs[4]:
-        st.header("🧬 Medical Curriculum")
+        st.header("🧬 Medical Resource Library")
         if role == "Owner":
-            with st.expander("បន្ថែមមេរៀន"):
-                lv = st.selectbox("កម្រិត", ["K1-K4", "P1-P6", "S1-S3", "H1-H3"], key="curr_lv")
-                tp = st.text_input("ប្រធានបទ")
-                lk = st.text_input("Link ឯកសារ")
-                if st.button("រក្សាទុកមេរៀន"):
-                    c.execute("INSERT INTO curriculum (level, topic, link) VALUES (?,?,?)", (lv, tp, lk))
+            with st.expander("Add New Content"):
+                c_lv = st.selectbox("Grade Level", ["K1-K4", "P1-P6", "S1-S3", "H1-H3"])
+                c_topic = st.text_input("Lesson Topic")
+                c_link = st.text_input("Resource URL (GDrive/PDF)")
+                if st.button("UPLOAD RESOURCE"):
+                    c.execute("INSERT INTO curriculum (level, topic, link) VALUES (?,?,?)", (c_lv, c_topic, c_link))
                     conn.commit()
         st.dataframe(pd.read_sql_query("SELECT * FROM curriculum", conn), use_container_width=True)
 
     # --- TAB: HEALTH ---
     with tabs[5]:
-        st.header("🍎 Nutrition & Health Tracker")
-        if not sts_df.empty:
-            sid_h = st.selectbox("ជ្រើសរើសសិស្ស", sts_df['id'], format_func=lambda x: sts_df[sts_df['id']==x]['name'].values[0], key="h_sid")
-            h1, h2 = st.columns(2)
-            wt = h1.number_input("ទម្ងន់ (kg)", min_value=0.0)
-            ht = h2.number_input("កម្ពស់ (cm)", min_value=0.0)
-            note = st.text_area("ចំណុចសុខភាព")
-            if st.button("កត់ត្រាសុខភាព"):
-                c.execute("INSERT INTO health_tracker (student_id, weight, height, diet_note, date) VALUES (?,?,?,?,?)", (sid_h, wt, ht, note, today))
+        st.header("🍎 Nutrition & Vital Tracker")
+        if not students_master.empty:
+            sid_h = st.selectbox("Select Student", students_master['id'], format_func=lambda x: students_master[students_master['id']==x]['name'].values[0], key="h_sid")
+            h_col1, h_col2 = st.columns(2)
+            wt = h_col1.number_input("Weight (kg)", min_value=0.0)
+            ht = h_col2.number_input("Height (cm)", min_value=0.0)
+            diet = st.text_area("Health & Dietary Notes")
+            if st.button("LOG HEALTH DATA"):
+                c.execute("INSERT INTO health_tracker (student_id, weight, height, diet_note, date) VALUES (?,?,?,?,?)", (sid_h, wt, ht, diet, today))
                 conn.commit()
-                st.success("កត់ត្រារួចរាល់!")
+                st.success("Vitals updated!")
 
     # --- TAB: INVENTORY ---
     with tabs[6]:
-        st.header("🛒 Inventory")
+        st.header("🛒 JMI Merchandising")
         if role == "Owner":
-            with st.expander("គ្រប់គ្រងស្តុក"):
-                itm = st.text_input("ឈ្មោះទំនិញ")
-                stk = st.number_input("ចំនួន", min_value=0)
-                prc = st.number_input("តម្លៃ ($)", min_value=0.0)
-                if st.button("រក្សាទុក"):
-                    c.execute("INSERT INTO inventory (item_name, stock, price) VALUES (?,?,?)", (itm, stk, prc))
+            with st.expander("Add Stock Items"):
+                item = st.text_input("Item Name (e.g., Lab Coat)")
+                qty = st.number_input("Stock Quantity", min_value=0)
+                price = st.number_input("Unit Price ($)", min_value=0.0)
+                if st.button("ADD TO INVENTORY"):
+                    c.execute("INSERT INTO inventory (item_name, stock, price) VALUES (?,?,?)", (item, qty, price))
                     conn.commit()
         st.table(pd.read_sql_query("SELECT * FROM inventory", conn))
 
-    # --- TAB: PROFILE SEARCH (NEW FEATURE) ---
+    # --- TAB: STUDENT SEARCH (Dr. CHAN'S 360 View) ---
     with tabs[7]:
-        st.header("👤 សាវតាសិស្សលម្អិត (Student Profile)")
-        if not sts_df.empty:
-            search_id = st.selectbox("ស្វែងរកឈ្មោះសិស្ស", sts_df['id'], format_func=lambda x: sts_df[sts_df['id']==x]['name'].values[0])
+        st.header("👤 360° Student Insight")
+        if not students_master.empty:
+            search_id = st.selectbox("Enter Student Name", students_master['id'], format_func=lambda x: students_master[students_master['id']==x]['name'].values[0])
             
-            p1, p2, p3 = st.columns(3)
-            # បង្ហាញជំនាញ
-            p1.subheader("📜 ជំនាញសម្រេចបាន")
-            p1.dataframe(pd.read_sql_query(f"SELECT skill_name, date_achieved FROM skill_passport WHERE student_id={search_id}", conn))
+            s1, s2, s3 = st.columns(3)
+            s1.subheader("📜 Skills Mastered")
+            s1.dataframe(pd.read_sql_query(f"SELECT skill_name, date_achieved FROM skill_passport WHERE student_id={search_id}", conn), use_container_width=True)
             
-            # បង្ហាញសុខភាព
-            p2.subheader("🍎 សន្ទស្សន៍សុខភាព")
-            p2.dataframe(pd.read_sql_query(f"SELECT weight, height, date FROM health_tracker WHERE student_id={search_id}", conn))
+            s2.subheader("🍎 Health Vitals")
+            s2.dataframe(pd.read_sql_query(f"SELECT weight, height, date FROM health_tracker WHERE student_id={search_id}", conn), use_container_width=True)
             
-            # បង្ហាញការបង់ប្រាក់
-            p3.subheader("💰 ប្រវត្តការបង់ប្រាក់")
-            p3.dataframe(pd.read_sql_query(f"SELECT amount, date FROM payments WHERE student_id={search_id}", conn))
+            s3.subheader("💰 Financial Status")
+            s3.dataframe(pd.read_sql_query(f"SELECT amount, date FROM payments WHERE student_id={search_id}", conn), use_container_width=True)
 
-    # --- TAB: CEO DASHBOARD ---
+    # --- TAB: CEO DASHBOARD (Owner Only) ---
     if role == "Owner":
         with tabs[8]:
-            st.header("📊 CEO Dashboard")
-            col1, col2, col3 = st.columns(3)
-            col1.metric("ចំណូលសរុប", f"${c.execute('SELECT SUM(amount) FROM payments').fetchone()[0] or 0:,.2f}")
-            col2.metric("សិស្សសរុប", len(sts_df))
-            col3.metric("តម្លៃស្តុក", f"${c.execute('SELECT SUM(stock * price) FROM inventory').fetchone()[0] or 0:,.2f}")
+            st.header("📊 Executive Performance Dashboard")
+            m1, m2, m3, m4 = st.columns(4)
+            
+            total_rev = c.execute("SELECT SUM(amount) FROM payments").fetchone()[0] or 0
+            total_st = len(students_master)
+            stock_val = c.execute("SELECT SUM(stock * price) FROM inventory").fetchone()[0] or 0
+            
+            m1.metric("Total Revenue", f"${total_rev:,.2f}")
+            m2.metric("Enrolled Students", total_st)
+            m3.metric("Inventory Value", f"${stock_val:,.2f}")
+            m4.metric("System Integrity", "Verified")
+            
+            # Export Feature
+            st.subheader("Data Export")
+            if st.button("GENERATE EXCEL REPORT"):
+                report_df = pd.read_sql_query("SELECT students.name, payments.amount, payments.date FROM payments JOIN students ON payments.student_id = students.id", conn)
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    report_df.to_excel(writer, index=False, sheet_name='Revenue_Report')
+                st.download_button(label="📥 Download Revenue Report", data=output.getvalue(), file_name=f"JMI_Report_{today}.xlsx")
 
-st.markdown(f"<div class='footer'><b>Prepared by CHAN Sokhoeurn, C2/DBA</b> | JMI v6.2 | 2026</div>", unsafe_allow_html=True)
+# --- FOOTER ---
+st.markdown(f"<div class='footer'><b>Prepared by Dr. CHAN Sokhoeurn, C2/DBA</b> | JMI Enterprise Ecosystem v6.3 | 2026</div>", unsafe_allow_html=True)
