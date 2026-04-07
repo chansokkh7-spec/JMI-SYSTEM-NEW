@@ -9,7 +9,7 @@ import io
 from datetime import datetime
 
 # --- 1. DATABASE & SYSTEM INITIALIZATION ---
-conn = sqlite3.connect('jmi_premium_v5_5.db', check_same_thread=False)
+conn = sqlite3.connect('jmi_premium_v5_6.db', check_same_thread=False)
 c = conn.cursor()
 
 def init_db():
@@ -31,9 +31,6 @@ def init_db():
 init_db()
 
 # --- 2. CONFIGURATION ---
-TELEGRAM_TOKEN = "YOUR_BOT_TOKEN_HERE"
-TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"
-
 def check_hashes(password, hashed_text):
     return hashlib.sha256(str.encode(password)).hexdigest() == hashed_text
 
@@ -42,59 +39,68 @@ st.set_page_config(page_title="JMI Portal | CHAN Sokhoeurn", layout="wide")
 
 st.markdown("""
     <style>
-    /* ផ្ទៃខាងក្រោយកម្មវិធីទាំងមូល (Navy Blue) */
+    /* ផ្ទៃ Background ធំ (Navy Blue) */
     .stApp {
         background-color: #000033;
     }
     
-    /* Sidebar Styling */
+    /* Sidebar (Darker Navy) */
     [data-testid="stSidebar"] {
-        background-color: #000022;
-        border-right: 3px solid #D4AF37; /* Gold Border */
+        background-color: #00001a !important;
+        border-right: 2px solid #D4AF37;
     }
     
-    /* ការកំណត់ពណ៌អក្សរទូទៅឱ្យទៅជាពណ៌មាស ឬស */
-    h1, h2, h3, p, span, label, .stMarkdown {
-        color: #D4AF37 !important; /* Gold Color */
+    /* ពណ៌អក្សរទូទៅ (Gold) */
+    h1, h2, h3, label, p, .stMarkdown {
+        color: #D4AF37 !important;
     }
-    
-    /* ប៊ូតុង Styling (Gold Background with Navy Text) */
+
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #000033;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #D4AF37;
+    }
+
+    /* Buttons (Gold Background with Navy Text) */
     .stButton>button {
         background-color: #D4AF37;
         color: #000033;
-        border: 2px solid #B8860B;
-        border-radius: 12px;
+        border: 1px solid #FFD700;
+        border-radius: 8px;
         font-weight: bold;
-        font-size: 18px;
-        transition: 0.3s;
+        width: 100%;
     }
-    
     .stButton>button:hover {
         background-color: #FFD700;
         color: #000000;
-        border: 2px solid #FFFFFF;
     }
 
-    /* Input Fields Styling */
-    .stTextInput>div>div>input, .stSelectbox>div>div>div {
-        background-color: #000055;
+    /* Inputs & Selectboxes */
+    input, select, .stSelectbox div {
+        background-color: #00004d !important;
         color: #D4AF37 !important;
+        border: 1px solid #D4AF37 !important;
+    }
+
+    /* Dataframe Styling */
+    .stDataFrame {
         border: 1px solid #D4AF37;
     }
 
-    /* Footer Styling */
+    /* Footer Custom */
     .footer {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        background-color: #000022;
+        background-color: #00001a;
         text-align: center;
-        padding: 10px;
-        font-size: 14px;
+        padding: 5px;
+        font-size: 12px;
         color: #D4AF37;
-        border-top: 2px solid #D4AF37;
-        z-index: 100;
+        border-top: 1px solid #D4AF37;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -103,11 +109,11 @@ st.markdown("""
 if 'auth' not in st.session_state:
     st.session_state['auth'] = False
 
-st.sidebar.markdown("<h1 style='text-align:center; color:#D4AF37;'>JMI</h1>", unsafe_allow_html=True)
+st.sidebar.markdown("<h2 style='text-align:center;'>JMI ADMIN</h2>", unsafe_allow_html=True)
 if not st.session_state['auth']:
     u = st.sidebar.text_input("Username")
     p = st.sidebar.text_input("Password", type='password')
-    if st.sidebar.button("LOGIN TO JMI"):
+    if st.sidebar.button("LOGIN"):
         res = c.execute("SELECT password, role FROM users WHERE username=?", (u,)).fetchone()
         if res and check_hashes(p, res[0]):
             st.session_state['auth'], st.session_state['user'], st.session_state['role'] = True, u, res[1]
@@ -123,51 +129,41 @@ else:
 if st.session_state['auth']:
     role = st.session_state['role']
 
-    if role in ["Owner", "Front Desk"]:
-        st.title("🏛️ JMI Enrollment System")
-        col_reg, col_pay = st.columns(2)
-        
-        with col_reg:
-            with st.form("enroll_form"):
-                st.subheader("📝 New Registration")
-                st_name = st.text_input("Student Name")
-                program_options = [
-                    "K1-K4: JMI Kindergarten",
-                    "P1-P6: JMI Primary",
-                    "S1-S3: JMI Secondary",
-                    "H1-H3: JMI High School",
-                    "PUF1-PUF2: JMI University Prep"
-                ]
-                st_level = st.selectbox("Program Path", program_options)
-                if st.form_submit_button("REGISTER NOW"):
-                    if st_name:
-                        c.execute("INSERT INTO students (name, grade, reg_date) VALUES (?,?,?)", 
-                                  (st_name, st_level, datetime.now().strftime("%Y-%m-%d")))
-                        conn.commit()
-                        st.success(f"Success! {st_name} joined {st_level}")
+    st.title("🏛️ JMI MANAGEMENT PORTAL")
+    
+    tab1, tab2, tab3 = st.tabs(["Enrollment", "Payments", "Dashboard"])
 
-        with col_pay:
-            st.subheader("💰 Payment Collection")
-            st_list = pd.read_sql_query("SELECT id, name FROM students", conn)
-            if not st_list.empty:
-                sel_id = st.selectbox("Select Student", st_list['id'], format_func=lambda x: st_list[st_list['id']==x]['name'].values[0])
-                amt = st.number_input("Amount ($)", min_value=0.0)
-                if st.button("ISSUE RECEIPT"):
-                    tx = str(uuid.uuid4())[:8].upper()
-                    c.execute("INSERT INTO payments (student_id, amount, date, staff_name, transaction_id) VALUES (?,?,?,?,?)",
-                              (int(sel_id), amt, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state['user'], tx))
+    with tab1:
+        with st.form("reg_form"):
+            st_name = st.text_input("Student Full Name")
+            st_level = st.selectbox("Program Path", [
+                "K1-K4: Kindergarten", "P1-P6: Primary", 
+                "S1-S3: Secondary", "H1-H3: High School", 
+                "PUF1-PUF2: Uni Prep"
+            ])
+            if st.form_submit_button("REGISTER"):
+                if st_name:
+                    c.execute("INSERT INTO students (name, grade, reg_date) VALUES (?,?,?)", 
+                              (st_name, st_level, datetime.now().strftime("%Y-%m-%d")))
                     conn.commit()
-                    st.info(f"Transaction ID: {tx}")
+                    st.success(f"{st_name} is registered!")
 
-    if role == "Owner":
-        st.markdown("---")
-        st.title("📊 CEO Dashboard")
-        rev = c.execute("SELECT SUM(amount) FROM payments").fetchone()[0] or 0
-        st.metric("Total Revenue", f"${rev:,.2f}")
-        
-        st.subheader("📋 Student Master List")
-        all_st = pd.read_sql_query("SELECT * FROM students", conn)
-        st.dataframe(all_st, use_container_width=True)
+    with tab2:
+        st_list = pd.read_sql_query("SELECT id, name FROM students", conn)
+        if not st_list.empty:
+            sel_id = st.selectbox("Select Student", st_list['id'], format_func=lambda x: st_list[st_list['id']==x]['name'].values[0])
+            amt = st.number_input("Amount ($)", min_value=0.0)
+            if st.button("COLLECT PAYMENT"):
+                tx = str(uuid.uuid4())[:8].upper()
+                c.execute("INSERT INTO payments (student_id, amount, date, staff_name, transaction_id) VALUES (?,?,?,?,?)",
+                          (int(sel_id), amt, datetime.now().strftime("%Y-%m-%d"), st.session_state['user'], tx))
+                conn.commit()
+                st.info(f"ID: {tx}")
 
-# --- 6. FOOTER ---
-st.markdown(f"<div class='footer'><b>Prepared by CHAN Sokhoeurn, C2/DBA</b> | Junior Medical Institute | Luxury Portal v5.5</div>", unsafe_allow_html=True)
+    with tab3:
+        if role == "Owner":
+            rev = c.execute("SELECT SUM(amount) FROM payments").fetchone()[0] or 0
+            st.metric("Total Revenue", f"${rev:,.2f}")
+            st.dataframe(pd.read_sql_query("SELECT * FROM students", conn), use_container_width=True)
+
+st.markdown(f"<div class='footer'><b>Prepared by CHAN Sokhoeurn, C2/DBA</b> | JMI Luxury Ecosystem v5.6</div>", unsafe_allow_html=True)
