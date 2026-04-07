@@ -2,3 +2,7 @@ streamlit
 pandas
 xlsxwriter
 requests
+streamlit
+pandas
+pillow
+fpdf
