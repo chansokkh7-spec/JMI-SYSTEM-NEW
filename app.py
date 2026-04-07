@@ -9,8 +9,8 @@ import io
 from datetime import datetime
 
 # --- 1. DATABASE & SYSTEM INITIALIZATION ---
-# Database version 5.1 includes the specialized JMI Kindergarten Curriculum
-conn = sqlite3.connect('jmi_final_v5_1.db', check_same_thread=False)
+# Database version 5.2 includes the FULL JMI Primary Curriculum (6 Levels)
+conn = sqlite3.connect('jmi_final_v5_2.db', check_same_thread=False)
 c = conn.cursor()
 
 def init_db():
@@ -24,8 +24,7 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users 
                  (username TEXT PRIMARY KEY, password TEXT, role TEXT)''')
     
-    # Default Accounts
-    # Admin: JMI@2026 | Front Desk: JMI_Staff_FD | Academic: JMI_Staff_AC
+    # Default Accounts: admin/JMI@2026, frontdesk/JMI_Staff_FD, academic/JMI_Staff_AC
     default_users = [
         ('admin', hashlib.sha256(str.encode("JMI@2026")).hexdigest(), 'Owner'),
         ('frontdesk', hashlib.sha256(str.encode("JMI_Staff_FD")).hexdigest(), 'Front Desk'),
@@ -37,7 +36,6 @@ def init_db():
 init_db()
 
 # --- 2. CONFIGURATION (CEO SETTINGS) ---
-# Paste your actual Bot details here to enable 2FA
 TELEGRAM_TOKEN = "YOUR_BOT_TOKEN_HERE"
 TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"
 
@@ -45,13 +43,13 @@ def check_hashes(password, hashed_text):
     return hashlib.sha256(str.encode(password)).hexdigest() == hashed_text
 
 def send_telegram_otp(otp_code):
-    message = f"🔐 JMI SECURITY ALERT: Your 2FA Code for Master Export is: {otp_code}."
+    message = f"🔐 JMI SECURITY ALERT: Your 2FA Code is: {otp_code}."
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={message}"
     try: requests.get(url)
-    except: st.error("Telegram Connection Error - Check Token/ID")
+    except: st.error("Telegram Connection Error")
 
-# --- 3. PREMIUM UI BRANDING (NAVY & GOLD) ---
-st.set_page_config(page_title="JMI Secure System | Prepared by CHAN Sokhoeurn", layout="wide")
+# --- 3. PREMIUM UI BRANDING ---
+st.set_page_config(page_title="JMI System | Prepared by CHAN Sokhoeurn", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #fcfcfc; }
@@ -62,7 +60,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. AUTHENTICATION LOGIC ---
+# --- 4. AUTHENTICATION ---
 if 'auth' not in st.session_state:
     st.session_state['auth'] = False
 
@@ -78,10 +76,9 @@ if not st.session_state['auth']:
             st.session_state['role'] = res[1]
             st.rerun()
         else:
-            st.sidebar.error("Credentials Incorrect")
+            st.sidebar.error("Invalid Credentials")
 else:
     st.sidebar.write(f"👤 User: **{st.session_state['user']}**")
-    st.sidebar.write(f"🏷️ Role: **{st.session_state['role']}**")
     if st.sidebar.button("LOGOUT"):
         st.session_state['auth'] = False
         st.rerun()
@@ -90,119 +87,116 @@ else:
 if st.session_state['auth']:
     role = st.session_state['role']
 
-    # --- FRONT DESK MODULE (Customized JMI Curriculum) ---
     if role in ["Owner", "Front Desk"]:
         st.header("🏢 Front Desk Operations")
-        tab1, tab2 = st.tabs(["New Student Enrollment", "Payment Collection"])
+        tab1, tab2 = st.tabs(["New Enrollment", "Payment Collection"])
         
         with tab1:
             with st.form("enroll_form"):
                 st_name = st.text_input("Student Full Name")
                 
-                # JMI SPECIALIZED PROGRAM STRUCTURE
+                # FULL JMI PROGRAM PATHWAY (Kindergarten + Primary)
                 program_options = [
-                    "K1: Little Explorers (អ្នករុករកតូច) - Body & Hygiene | 9 Lessons",
-                    "K2: Health Heroes (វីរបុរសសុខភាព) - Organs & Prevention | 9 Lessons",
-                    "K3: Junior Medics (គ្រូពេទ្យវ័យក្មេង) - Medical Tools | 9 Lessons",
-                    "K4: Little Specialists (អ្នកឯកទេសតូច) - Brain & Science | 9 Lessons",
-                    "Primary: Grade 1-6 (12 Lessons/Level)",
-                    "Secondary: Grade 7-9 (15 Lessons/Level)",
-                    "High School: Grade 10-12 (19 Lessons/Level)",
-                    "University Prep (21 Lessons/Level)"
+                    "-- JMI KINDERGARTEN (9 Lessons/Level) --",
+                    "K1: Little Explorers (Body & Hygiene)",
+                    "K2: Health Heroes (Organs & Germs)",
+                    "K3: Junior Medics (First Aid Tools)",
+                    "K4: Little Specialists (Brain & Pre-Science)",
+                    "-- JMI PRIMARY (12 Lessons/Level) --",
+                    "P1 & P2: Foundational Human Biology (Cells to Systems)",
+                    "P3 & P4: Preventive Medicine (Public Health & Nutrition)",
+                    "P5 & P6: Clinical Skills & First Aid (Vital Signs & CPR)",
+                    "-- ADVANCED JMI --",
+                    "Secondary: Grade 7-9 (15 Lessons)",
+                    "High School: Grade 10-12 (19 Lessons)",
+                    "University Prep (21 Lessons)"
                 ]
                 st_level = st.selectbox("Select JMI Program Path", program_options)
                 
-                # Real-time Program Guidance for Staff
-                if "K1" in st_level: st.info("Objective: Body parts, 7-step hand washing, basic hygiene.")
-                elif "K2" in st_level: st.info("Objective: Internal organs (Heart, Lungs), Germs, Vitamins.")
-                elif "K3" in st_level: st.info("Objective: Stethoscope, First Aid, Vaccine awareness.")
-                elif "K4" in st_level: st.info("Objective: Brain function, Blood cells, Environment & Tech safety.")
+                # Dynamic Guidance for Staff
+                if "P1 & P2" in st_level:
+                    st.info("🎯 Focus: Cells, Bone system, Muscles, Digestion, Breathing, and Nervous system.")
+                elif "P3 & P4" in st_level:
+                    st.info("🎯 Focus: Microbiology (Bacteria/Virus), WASH, Nutrition, Digital Health, and Vaccines.")
+                elif "P5 & P6" in st_level:
+                    st.info("🎯 Focus: Vital Signs (Blood Pressure), Clinical Skills, Laboratory awareness, and Medical Ethics.")
 
                 if st.form_submit_button("REGISTER STUDENT"):
-                    if st_name:
+                    if st_name and not st_level.startswith("--"):
                         c.execute("INSERT INTO students (name, grade, reg_date) VALUES (?,?,?)", 
                                   (st_name, st_level, datetime.now().strftime("%Y-%m-%d")))
                         c.execute("INSERT INTO activity_logs (user, action) VALUES (?,?)", 
-                                  (st.session_state['user'], f"Registered: {st_name} into {st_level}"))
+                                  (st.session_state['user'], f"Registered: {st_name} to {st_level}"))
                         conn.commit()
-                        st.success(f"✅ Successful! {st_name} is now enrolled in {st_level}")
-                    else: st.warning("Please enter student name.")
+                        st.success(f"✅ Success! {st_name} is enrolled in {st_level}")
+                    else: st.warning("Please enter student name and select a valid program.")
 
         with tab2:
             st.subheader("Payment Management")
             st_list = pd.read_sql_query("SELECT id, name FROM students", conn)
             if not st_list.empty:
                 sel_id = st.selectbox("Select Student", st_list['id'], format_func=lambda x: st_list[st_list['id']==x]['name'].values[0])
-                amt = st.number_input("Amount Collected ($)", min_value=0.0)
+                amt = st.number_input("Amount ($)", min_value=0.0)
                 if st.button("ISSUE RECEIPT"):
                     tx = str(uuid.uuid4())[:8].upper()
                     c.execute("INSERT INTO payments (student_id, amount, date, staff_name, transaction_id) VALUES (?,?,?,?,?)",
                               (int(sel_id), amt, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state['user'], tx))
                     conn.commit()
-                    st.success(f"Transaction Recorded: {tx}")
+                    st.success(f"Payment Recorded: {tx}")
 
-    # --- ACADEMIC MODULE ---
     if role in ["Owner", "Academic"]:
-        st.header("🎓 Academic Management")
+        st.header("🎓 Academic Records")
         records = pd.read_sql_query("SELECT * FROM students", conn)
         st.dataframe(records, use_container_width=True)
 
-    # --- OWNER DASHBOARD (CEO Master Panel) ---
     if role == "Owner":
         st.markdown("---")
-        st.header("📊 CEO Master Panel (Financials & Security)")
-        
-        # Financial Summary
+        st.header("📊 CEO Master Dashboard")
         revenue = c.execute("SELECT SUM(amount) FROM payments").fetchone()[0] or 0
         students_count = c.execute("SELECT COUNT(*) FROM students").fetchone()[0]
         
         m1, m2 = st.columns(2)
         m1.metric("Total Revenue", f"${revenue:,.2f}")
-        m2.metric("Total JMI Students", students_count)
+        m2.metric("Active JMI Students", students_count)
 
-        # 2FA Data Export Logic
-        st.subheader("📥 Secure Data Export (Master Excel)")
+        # 2FA Logic
+        st.subheader("📥 Master Data Export (2FA)")
         if 'verified' not in st.session_state: st.session_state.verified = False
-        
         if not st.session_state.verified:
-            if st.button("Request 2FA Code (Telegram)"):
+            if st.button("Request 2FA Code"):
                 otp = random.randint(100000, 999999)
                 st.session_state.otp_code = str(otp)
                 send_telegram_otp(otp)
-                st.info("Verification code sent to your private Telegram.")
-            
-            input_otp = st.text_input("Enter 6-Digit Code", type="password")
-            if input_otp == st.session_state.get('otp_code'):
+                st.info("OTP sent to Telegram.")
+            otp_in = st.text_input("Enter OTP", type="password")
+            if otp_in == st.session_state.get('otp_code'):
                 st.session_state.verified = True
                 st.rerun()
         else:
-            st.success("Identity Verified. Access Granted.")
-            full_data = pd.read_sql_query("SELECT * FROM payments", conn)
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                full_data.to_excel(writer, index=False)
-            st.download_button("DOWNLOAD FULL FINANCIAL REPORT", data=buffer, file_name=f"JMI_Master_Report_{datetime.now().strftime('%Y%m%d')}.xlsx")
-            if st.button("LOCK SECURITY"):
+            data = pd.read_sql_query("SELECT * FROM payments", conn)
+            buf = io.BytesIO()
+            with pd.ExcelWriter(buf, engine='xlsxwriter') as wr:
+                data.to_excel(wr, index=False)
+            st.download_button("Download Report", data=buf, file_name="JMI_Report.xlsx")
+            if st.button("Relock Data"):
                 st.session_state.verified = False
                 st.rerun()
 
-        # User Management for CEO
+        # User Management
         st.markdown("---")
-        st.subheader("👥 User & Staff Management")
-        with st.expander("Create New Staff Account"):
-            nu = st.text_input("Username")
-            np = st.text_input("Password", type="password")
+        st.subheader("👥 User Management")
+        with st.expander("Add Staff Account"):
+            nu, np = st.text_input("Username"), st.text_input("Password", type="password")
             nr = st.selectbox("Role", ["Front Desk", "Academic", "Owner"])
             if st.button("CREATE USER"):
                 if nu and np:
-                    hashed_p = hashlib.sha256(str.encode(np)).hexdigest()
+                    hashed = hashlib.sha256(str.encode(np)).hexdigest()
                     try:
-                        c.execute("INSERT INTO users VALUES (?,?,?)", (nu, hashed_p, nr))
+                        c.execute("INSERT INTO users VALUES (?,?,?)", (nu, hashed, nr))
                         conn.commit()
-                        st.success(f"User {nu} created as {nr}")
-                    except: st.error("Username already taken.")
-        
+                        st.success(f"User {nu} added.")
+                    except: st.error("Error creating user.")
         st.table(pd.read_sql_query("SELECT username, role FROM users", conn))
 
 # --- 6. FOOTER ---
-st.markdown(f"<div class='footer'><b>Prepared by CHAN Sokhoeurn, C2/DBA</b> | JMI Secure Ecosystem v5.1 | 2026 </div>", unsafe_allow_html=True)
+st.markdown(f"<div class='footer'><b>Prepared by CHAN Sokhoeurn, C2/DBA</b> | JMI Secure Ecosystem v5.2 | 2026 </div>", unsafe_allow_html=True)
