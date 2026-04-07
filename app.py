@@ -9,8 +9,8 @@ import io
 from datetime import datetime
 
 # --- 1. DATABASE & SYSTEM INITIALIZATION ---
-# Using a new version name to ensure the updated structure is applied
-conn = sqlite3.connect('jmi_final_v5.db', check_same_thread=False)
+# Database version 5.1 includes the specialized JMI Kindergarten Curriculum
+conn = sqlite3.connect('jmi_final_v5_1.db', check_same_thread=False)
 c = conn.cursor()
 
 def init_db():
@@ -25,6 +25,7 @@ def init_db():
                  (username TEXT PRIMARY KEY, password TEXT, role TEXT)''')
     
     # Default Accounts
+    # Admin: JMI@2026 | Front Desk: JMI_Staff_FD | Academic: JMI_Staff_AC
     default_users = [
         ('admin', hashlib.sha256(str.encode("JMI@2026")).hexdigest(), 'Owner'),
         ('frontdesk', hashlib.sha256(str.encode("JMI_Staff_FD")).hexdigest(), 'Front Desk'),
@@ -36,6 +37,7 @@ def init_db():
 init_db()
 
 # --- 2. CONFIGURATION (CEO SETTINGS) ---
+# Paste your actual Bot details here to enable 2FA
 TELEGRAM_TOKEN = "YOUR_BOT_TOKEN_HERE"
 TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"
 
@@ -43,24 +45,24 @@ def check_hashes(password, hashed_text):
     return hashlib.sha256(str.encode(password)).hexdigest() == hashed_text
 
 def send_telegram_otp(otp_code):
-    message = f"🔐 JMI SECURITY: Your 2FA Code is: {otp_code}. Authorized personnel only."
+    message = f"🔐 JMI SECURITY ALERT: Your 2FA Code for Master Export is: {otp_code}."
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={message}"
     try: requests.get(url)
-    except: st.error("Telegram Connection Error")
+    except: st.error("Telegram Connection Error - Check Token/ID")
 
 # --- 3. PREMIUM UI BRANDING (NAVY & GOLD) ---
-st.set_page_config(page_title="JMI Secure System | CHAN Sokhoeurn", layout="wide")
+st.set_page_config(page_title="JMI Secure System | Prepared by CHAN Sokhoeurn", layout="wide")
 st.markdown("""
     <style>
     .stApp { background-color: #fcfcfc; }
-    [data-testid="stSidebar"] { background-color: #000080; color: white; border-right: 3px solid #FFD700; }
-    .stButton>button { background-color: #000080; color: #FFD700; border: 1px solid #FFD700; border-radius: 10px; font-weight: bold; }
-    h1, h2, h3 { color: #000080; border-bottom: 1px solid #FFD700; padding-bottom: 5px; }
+    [data-testid="stSidebar"] { background-color: #000080; color: white; border-right: 4px solid #FFD700; }
+    .stButton>button { background-color: #000080; color: #FFD700; border: 1px solid #FFD700; border-radius: 10px; font-weight: bold; width: 100%; }
+    h1, h2, h3 { color: #000080; border-bottom: 2px solid #FFD700; padding-bottom: 5px; }
     .footer { position: fixed; bottom: 0; left: 0; width: 100%; background: white; text-align: center; padding: 10px; font-size: 13px; color: #333; border-top: 2px solid #FFD700; z-index: 100; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. LOGIN LOGIC ---
+# --- 4. AUTHENTICATION LOGIC ---
 if 'auth' not in st.session_state:
     st.session_state['auth'] = False
 
@@ -76,9 +78,10 @@ if not st.session_state['auth']:
             st.session_state['role'] = res[1]
             st.rerun()
         else:
-            st.sidebar.error("Access Denied")
+            st.sidebar.error("Credentials Incorrect")
 else:
-    st.sidebar.write(f"👤 Logged in: **{st.session_state['user']}**")
+    st.sidebar.write(f"👤 User: **{st.session_state['user']}**")
+    st.sidebar.write(f"🏷️ Role: **{st.session_state['role']}**")
     if st.sidebar.button("LOGOUT"):
         st.session_state['auth'] = False
         st.rerun()
@@ -87,45 +90,56 @@ else:
 if st.session_state['auth']:
     role = st.session_state['role']
 
-    # --- FRONT DESK MODULE ---
+    # --- FRONT DESK MODULE (Customized JMI Curriculum) ---
     if role in ["Owner", "Front Desk"]:
         st.header("🏢 Front Desk Operations")
-        tab1, tab2 = st.tabs(["New Enrollment", "Payment Collection"])
+        tab1, tab2 = st.tabs(["New Student Enrollment", "Payment Collection"])
         
         with tab1:
-            with st.form("enroll"):
+            with st.form("enroll_form"):
                 st_name = st.text_input("Student Full Name")
                 
-                # Updated JMI Program Structure as requested
+                # JMI SPECIALIZED PROGRAM STRUCTURE
                 program_options = [
-                    "Kindergarten (4 Levels | 9 Lessons each)",
-                    "Primary (6 Levels | 12 Lessons each)",
-                    "Secondary (3 Levels | 15 Lessons each)",
-                    "High School (3 Levels | 19 Lessons each)",
-                    "University Prep (2 Levels | 21 Lessons each)"
+                    "K1: Little Explorers (អ្នករុករកតូច) - Body & Hygiene | 9 Lessons",
+                    "K2: Health Heroes (វីរបុរសសុខភាព) - Organs & Prevention | 9 Lessons",
+                    "K3: Junior Medics (គ្រូពេទ្យវ័យក្មេង) - Medical Tools | 9 Lessons",
+                    "K4: Little Specialists (អ្នកឯកទេសតូច) - Brain & Science | 9 Lessons",
+                    "Primary: Grade 1-6 (12 Lessons/Level)",
+                    "Secondary: Grade 7-9 (15 Lessons/Level)",
+                    "High School: Grade 10-12 (19 Lessons/Level)",
+                    "University Prep (21 Lessons/Level)"
                 ]
-                st_level = st.selectbox("Select JMI Program", program_options)
+                st_level = st.selectbox("Select JMI Program Path", program_options)
                 
-                if st.form_submit_button("Register"):
-                    c.execute("INSERT INTO students (name, grade, reg_date) VALUES (?,?,?)", 
-                              (st_name, st_level, datetime.now().strftime("%Y-%m-%d")))
-                    c.execute("INSERT INTO activity_logs (user, action) VALUES (?,?)", 
-                              (st.session_state['user'], f"Enrolled {st_name} into {st_level}"))
-                    conn.commit()
-                    st.success(f"Success: {st_name} registered in {st_level}")
+                # Real-time Program Guidance for Staff
+                if "K1" in st_level: st.info("Objective: Body parts, 7-step hand washing, basic hygiene.")
+                elif "K2" in st_level: st.info("Objective: Internal organs (Heart, Lungs), Germs, Vitamins.")
+                elif "K3" in st_level: st.info("Objective: Stethoscope, First Aid, Vaccine awareness.")
+                elif "K4" in st_level: st.info("Objective: Brain function, Blood cells, Environment & Tech safety.")
+
+                if st.form_submit_button("REGISTER STUDENT"):
+                    if st_name:
+                        c.execute("INSERT INTO students (name, grade, reg_date) VALUES (?,?,?)", 
+                                  (st_name, st_level, datetime.now().strftime("%Y-%m-%d")))
+                        c.execute("INSERT INTO activity_logs (user, action) VALUES (?,?)", 
+                                  (st.session_state['user'], f"Registered: {st_name} into {st_level}"))
+                        conn.commit()
+                        st.success(f"✅ Successful! {st_name} is now enrolled in {st_level}")
+                    else: st.warning("Please enter student name.")
 
         with tab2:
             st.subheader("Payment Management")
-            st_df = pd.read_sql_query("SELECT id, name FROM students", conn)
-            if not st_df.empty:
-                sel_id = st.selectbox("Select Student", st_df['id'], format_func=lambda x: st_df[st_df['id']==x]['name'].values[0])
-                pay_amt = st.number_input("Amount Paid ($)", min_value=0.0)
-                if st.button("Confirm Payment"):
-                    tx_id = str(uuid.uuid4())[:8].upper()
+            st_list = pd.read_sql_query("SELECT id, name FROM students", conn)
+            if not st_list.empty:
+                sel_id = st.selectbox("Select Student", st_list['id'], format_func=lambda x: st_list[st_list['id']==x]['name'].values[0])
+                amt = st.number_input("Amount Collected ($)", min_value=0.0)
+                if st.button("ISSUE RECEIPT"):
+                    tx = str(uuid.uuid4())[:8].upper()
                     c.execute("INSERT INTO payments (student_id, amount, date, staff_name, transaction_id) VALUES (?,?,?,?,?)",
-                              (int(sel_id), pay_amt, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state['user'], tx_id))
+                              (int(sel_id), amt, datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state['user'], tx))
                     conn.commit()
-                    st.success(f"Payment Recorded: {tx_id}")
+                    st.success(f"Transaction Recorded: {tx}")
 
     # --- ACADEMIC MODULE ---
     if role in ["Owner", "Academic"]:
@@ -133,57 +147,62 @@ if st.session_state['auth']:
         records = pd.read_sql_query("SELECT * FROM students", conn)
         st.dataframe(records, use_container_width=True)
 
-    # --- OWNER DASHBOARD ---
+    # --- OWNER DASHBOARD (CEO Master Panel) ---
     if role == "Owner":
         st.markdown("---")
-        st.header("📊 CEO Master Panel")
-        income = c.execute("SELECT SUM(amount) FROM payments").fetchone()[0] or 0
-        total_s = c.execute("SELECT COUNT(*) FROM students").fetchone()[0]
-        col1, col2 = st.columns(2)
-        col1.metric("Revenue", f"${income:,.2f}")
-        col2.metric("Total Students", total_s)
+        st.header("📊 CEO Master Panel (Financials & Security)")
+        
+        # Financial Summary
+        revenue = c.execute("SELECT SUM(amount) FROM payments").fetchone()[0] or 0
+        students_count = c.execute("SELECT COUNT(*) FROM students").fetchone()[0]
+        
+        m1, m2 = st.columns(2)
+        m1.metric("Total Revenue", f"${revenue:,.2f}")
+        m2.metric("Total JMI Students", students_count)
 
-        # 2FA for Data Export
-        st.subheader("📥 Data Export Center (2FA Protected)")
+        # 2FA Data Export Logic
+        st.subheader("📥 Secure Data Export (Master Excel)")
         if 'verified' not in st.session_state: st.session_state.verified = False
         
         if not st.session_state.verified:
-            if st.button("Request 2FA OTP"):
+            if st.button("Request 2FA Code (Telegram)"):
                 otp = random.randint(100000, 999999)
                 st.session_state.otp_code = str(otp)
                 send_telegram_otp(otp)
-                st.info("OTP sent to your Telegram.")
+                st.info("Verification code sent to your private Telegram.")
             
-            check_otp = st.text_input("Enter OTP", type="password")
-            if check_otp == st.session_state.get('otp_code'):
+            input_otp = st.text_input("Enter 6-Digit Code", type="password")
+            if input_otp == st.session_state.get('otp_code'):
                 st.session_state.verified = True
                 st.rerun()
         else:
-            st.success("Authorized Access.")
+            st.success("Identity Verified. Access Granted.")
             full_data = pd.read_sql_query("SELECT * FROM payments", conn)
-            buf = io.BytesIO()
-            with pd.ExcelWriter(buf, engine='xlsxwriter') as wr:
-                full_data.to_excel(wr, index=False)
-            st.download_button("Download Financial Report (Excel)", data=buf, file_name="JMI_Financial_Report.xlsx")
-            if st.button("Reset Lock"):
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                full_data.to_excel(writer, index=False)
+            st.download_button("DOWNLOAD FULL FINANCIAL REPORT", data=buffer, file_name=f"JMI_Master_Report_{datetime.now().strftime('%Y%m%d')}.xlsx")
+            if st.button("LOCK SECURITY"):
                 st.session_state.verified = False
                 st.rerun()
 
-        # User Management
+        # User Management for CEO
         st.markdown("---")
-        st.subheader("👥 System Users")
-        with st.expander("Add New Staff"):
-            nu = st.text_input("New Username")
-            np = st.text_input("New Password", type="password")
+        st.subheader("👥 User & Staff Management")
+        with st.expander("Create New Staff Account"):
+            nu = st.text_input("Username")
+            np = st.text_input("Password", type="password")
             nr = st.selectbox("Role", ["Front Desk", "Academic", "Owner"])
-            if st.button("Create"):
-                hashed = hashlib.sha256(str.encode(np)).hexdigest()
-                try:
-                    c.execute("INSERT INTO users VALUES (?,?,?)", (nu, hashed, nr))
-                    conn.commit()
-                    st.success("Account created.")
-                except: st.error("Exists.")
+            if st.button("CREATE USER"):
+                if nu and np:
+                    hashed_p = hashlib.sha256(str.encode(np)).hexdigest()
+                    try:
+                        c.execute("INSERT INTO users VALUES (?,?,?)", (nu, hashed_p, nr))
+                        conn.commit()
+                        st.success(f"User {nu} created as {nr}")
+                    except: st.error("Username already taken.")
+        
         st.table(pd.read_sql_query("SELECT username, role FROM users", conn))
 
-# --- 6. GLOBAL FOOTER ---
-st.markdown(f"<div class='footer'>Prepared by <b>CHAN Sokhoeurn, C2/DBA</b> | School Management System v5.0 (Customized for JMI)</div>", unsafe_allow_html=True)
+# --- 6. FOOTER ---
+st.markdown(f"<div class='footer'><b>Prepared by CHAN Sokhoeurn, C2/DBA</b> | JMI Secure Ecosystem v5.1 | 2026 </div>", unsafe_allow_html=True)
